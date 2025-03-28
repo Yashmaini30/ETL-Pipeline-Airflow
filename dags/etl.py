@@ -35,6 +35,15 @@ with DAG(
 
 
     ## step 2. Extract the data from the Nasa API (APOD)
+    ### https://api.nasa.gov/planetary/apod?api_key=O8xAYHGN3qS6uNfuXDa13PvfCwRsnOje4WgChEAH
+    extract_apod = SimpleHttpOperator(
+        task_id="extract_apod",
+        http_conn_id="nasa_api",  ## Connection ID defined in airflow for nasa API
+        endpoint="planetary/apod",
+        method="GET",
+        data={"api_key":"{{conn.nasa_api.extra_dejson.api_key}}"}, ## use the API key from the connection
+        response_filter=lambda response: json.loads(response.text),
+    )
 
 
     ## step 3. transform the data  (pick the information that needs to be saved)
