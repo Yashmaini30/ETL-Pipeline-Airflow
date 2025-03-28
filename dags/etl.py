@@ -47,10 +47,36 @@ with DAG(
 
 
     ## step 3. transform the data  (pick the information that needs to be saved)
-
+    @task
+    def transform_apod_data(response):
+        apod_data={
+            'title': response.get['title',''],
+            'explanation': response.get['explanation',''],
+            'url': response.get['url',''],
+            'date': response.get['date',''],
+            'media_type': response.get['media_type',''],
+        }
+        return apod_data
 
     ## step 4. Load the data into the Postgress table
+    @task
+    def load_data_to_postgress(apod_data):
+        ## initailization of PostgressHook
+        pg_hook = PostgresHook(postgres_conn_id="my_postgres_connection")
 
+        ## SQl Insert Query 
+        insert_query = """
+        INSERT INTO nasa_apod (title, explanation, url, date, media_type)
+        VALUES (%(title)s, %(explanation)s, %(url)s, %(date)s, %(media_type)s);
+        """
+        ## execute the query
+        pg_hook.run(insert_query, parameters=(
+            apod_data['title'],
+            apod_data['explanation'],
+            apod_data['url'],
+            apod_data['date'],
+            apod_data['media_type'],
+        ))
 
     ## step 5. Verify the data DBviewer
 
