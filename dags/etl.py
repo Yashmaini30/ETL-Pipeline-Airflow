@@ -6,9 +6,9 @@ from airflow.utils.dates import days_ago
 import json
 
 with DAG(
-    dag_id="nasa_apod_postgress"
+    dag_id="nasa_apod_postgress",
     start_date=days_ago(1),
-    schedule_interval=@daily,
+    schedule_interval="@daily",
     catchup=False,
 ) as dag:
 
@@ -42,20 +42,21 @@ with DAG(
         endpoint="planetary/apod",
         method="GET",
         data={"api_key":"{{conn.nasa_api.extra_dejson.api_key}}"}, ## use the API key from the connection
-        response_filter=lambda response: json.loads(response.text),
+        response_filter=lambda response: json.loads(response.text) if response.text else {},
     )
 
 
     ## step 3. transform the data  (pick the information that needs to be saved)
     @task
     def transform_apod_data(response):
-        apod_data={
-            'title': response.get['title',''],
-            'explanation': response.get['explanation',''],
-            'url': response.get['url',''],
-            'date': response.get['date',''],
-            'media_type': response.get['media_type',''],
+        apod_data = {
+            'title': response.get('title', ''),
+            'explanation': response.get('explanation', ''),
+            'url': response.get('url', ''),
+            'date': response.get('date', ''),
+            'media_type': response.get('media_type', ''),
         }
+
         return apod_data
 
     ## step 4. Load the data into the Postgress table
@@ -70,17 +71,14 @@ with DAG(
         VALUES (%(title)s, %(explanation)s, %(url)s, %(date)s, %(media_type)s);
         """
         ## execute the query
-        pg_hook.run(insert_query, parameters=(
-            apod_data['title'],
-            apod_data['explanation'],
-            apod_data['url'],
-            apod_data['date'],
-            apod_data['media_type'],
-        ))
+        pg_hook.run(insert_query, parameters=apod_data)
 
     ## step 5. Verify the data DBviewer
 
 
     ## step 6 task dependencies
-
+    create_table() >> extract_apod
+    api_response=extract_apod.output
+    transformed_data=transform_apod_data(api_response)
+    load_data_to_postgress(transformed_data)
 
