@@ -13,6 +13,25 @@ with DAG(
 ) as dag:
 
     ## step 1. Create the table if it doesn't exist
+    @task
+    def create_table():
+        ## initialise postgresshook
+        pg_hook = PostgresHook(postgres_conn_id="my_postgres_connection")
+
+        ## SQl query to create table
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS nasa_apod (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(255),
+            explanation TEXT,
+            url TEXT,
+            date DATE,
+            media_type VARCHAR(50)
+        );
+        """
+
+        ## execute the query
+        pg_hook.run(create_table_query)
 
 
     ## step 2. Extract the data from the Nasa API (APOD)
